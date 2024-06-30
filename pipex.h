@@ -12,10 +12,10 @@ t_command	*command_create(char	*raw_command, int infd, int outfd);
 
 void			command_destroy(t_command *command);
 
-char  **paths_create(char **envp);
+int				command_execute(t_command *command, char **paths);
 
-char  **paths_destroy(char **paths);
+char			**paths_create(char **envp);
 
-int   command_execute(char *command, char **paths, int *infd, int *outfd);
+char			**paths_destroy(char **paths);
 
-#endif // !PIPEX_H
+#endif
