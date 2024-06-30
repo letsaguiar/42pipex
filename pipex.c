@@ -1,51 +1,68 @@
 #include "pipex.h"
-#include "libft.h"
 #include <fcntl.h>
 #include <sys/types.h>
 #include <unistd.h>
 
-int pipex(char **args, char **paths, int *infd, int *outfd)
+int	pipex(char **args, char **paths, int infd, int outfd)
 {
-  pid_t pid;
-  int   pipefd[2];
+	pid_t			first_pid;
+	pid_t			second_pid;
+	t_command	*first_command;
+	t_command	*second_command;
+	int				pipefd[2];
 
-  if (pipe(pipefd) < 0)
-    return (-1);
-  pid = fork();
-  if (pid < 0)
-    return (-1);
-  else if (pid == 0)
-  {
-    close(pipefd[0]);
-    command_execute(args[2], paths, infd, &pipefd[1]);
-    close(pipefd[1]);
-  }
-  else
-  {
-    close(pipefd[1]);
-    command_execute(args[3], paths, &pipefd[0], outfd);
-    close(pipefd[0]);
-  }
+	if (pipe(pipefd) < 0)
+		return (ERROR_INTERNAL);
+	first_pid = fork();
+	first_command = command_create(args[2], infd, pipefd[1]);
+	if (first_pid == 0)
+	{
+		close(pipefd[0]);
+		command_execute(first_command, paths);
+		close(pipefd[1]);
+	}
 
-  return (-1);
+	second_pid = fork();
+	second_command = command_create(args[3], pipefd[0], outfd);
+	if (second_pid == 0)
+	{
+		close(pipefd[1]);
+		command_execute(second_command, paths);
+		close(pipefd[0]);
+	}
+
+	close(pipefd[0]);
+	close(pipefd[1]);
+	command_destroy(first_command);
+	command_destroy(second_command);
+	return (0);
 }
 
 int main(int argc, char **argv, char **envp)
 {
+	char			**paths;
+	int				infd;
+	int				outfd;
+
   if (argc < 5)
-    return (-1);
+    return (ERROR_TOO_FEW_ARGUMENTS);
 
-  char **paths = paths_create(envp);
-  int  infd = open(argv[1], O_RDONLY);
-  int  outfd = open(argv[4], O_RDWR | O_CREAT | O_TRUNC, 0644);
+	paths = paths_create(envp);
+	if (!paths)
+		return (ERROR_ENVIRONMENT);
 
-  if (!pipex(argv, paths, &infd, &outfd))
-  {
-    paths_destroy(paths);
-    close(infd);
-    close(outfd);
-    return (1);
-  }
+	if (
+		(infd = open(argv[1], O_RDONLY)) < 0
+		|| (outfd = open(argv[4], O_RDWR | O_CREAT | O_TRUNC, 0644)) < 0
+	)
+	{
+		paths_destroy(paths);
+		return (ERROR_FILE);
+	}
 
-  return (0);
+	pipex(argv, paths, infd, outfd);
+
+	paths_destroy(paths);
+	close(infd);
+	close(outfd);
 }

@@ -24,4 +24,6 @@ void	command_destroy(t_command *command)
 		free(command->arguments);
 	}
 	
+	if (command)
+		free(command);
 }
